@@ -114,7 +114,7 @@ class SlackBot:
                 )
 
         @self.app.command("/duvidaki")
-        def handle_slash_command(ack, command, say):
+        def handle_slash_command(ack, command, respond):
             """Handle /duvidaki slash command"""
             try:
                 ack()
@@ -123,7 +123,7 @@ class SlackBot:
                 text = command.get("text", "")
 
                 if not text:
-                    say(
+                    respond(
                         text="Use: `/duvidaki sua pergunta aqui`",
                         response_type="ephemeral"
                     )
@@ -135,17 +135,17 @@ class SlackBot:
                 response = self.rag_service.query(text)
 
                 # Send response
-                say(text=response)
+                respond(text=response)
 
             except Exception as e:
                 logger.error(f"Error handling slash command: {e}")
-                say(
+                respond(
                     text="Desculpe, ocorreu um erro ao processar sua pergunta.",
                     response_type="ephemeral"
                 )
 
         @self.app.command("/duvidaki-stats")
-        def handle_stats_command(ack, command, say):
+        def handle_stats_command(ack, command, respond):
             """Handle /duvidaki-stats slash command"""
             try:
                 ack()
@@ -159,11 +159,11 @@ class SlackBot:
 • GitHub: {'✅ Configurado' if stats['github_configured'] else '❌ Não configurado'}
 """
 
-                say(text=response, response_type="ephemeral")
+                respond(text=response, response_type="ephemeral")
 
             except Exception as e:
                 logger.error(f"Error handling stats command: {e}")
-                say(
+                respond(
                     text="Erro ao obter estatísticas.",
                     response_type="ephemeral"
                 )
