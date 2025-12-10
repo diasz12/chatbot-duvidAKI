@@ -1,10 +1,16 @@
 """
-Document processor for chunking and preparing documents for vector storage
+Document processor for chunking and preparing documents for vector storage.
+
+This module provides the DocumentProcessor class for handling document chunking,
+text cleaning, and code block extraction. It prepares documents for embedding
+and storage in the vector database.
 """
 
-from typing import List, Dict, Any
 import hashlib
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import re
+from typing import Any, Dict, List, Tuple
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config import Config
 from src.utils.logger import setup_logger
@@ -13,10 +19,18 @@ logger = setup_logger(__name__)
 
 
 class DocumentProcessor:
-    """Process documents for vector storage"""
+    """
+    Process documents for vector storage.
+
+    Handles document chunking, metadata enrichment, and text preparation
+    for embedding generation and vector storage.
+
+    Attributes:
+        text_splitter: LangChain text splitter for chunking documents
+    """
 
     def __init__(self):
-        """Initialize document processor"""
+        """Initialize document processor with configured chunk size and overlap."""
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=Config.CHUNK_SIZE,
             chunk_overlap=Config.CHUNK_OVERLAP,
@@ -28,15 +42,23 @@ class DocumentProcessor:
     def process_documents(
         self,
         documents: List[Dict[str, Any]]
-    ) -> tuple[List[str], List[Dict[str, Any]], List[str]]:
+    ) -> Tuple[List[str], List[Dict[str, Any]], List[str]]:
         """
-        Process documents into chunks with metadata
+        Process documents into chunks with metadata.
 
         Args:
             documents: List of documents with 'content', 'source', and 'metadata'
 
         Returns:
-            Tuple of (texts, metadatas, ids)
+            Tuple[List[str], List[Dict[str, Any]], List[str]]:
+                - texts: List of chunked text strings
+                - metadatas: List of metadata dictionaries for each chunk
+                - ids: List of unique IDs for each chunk
+
+        Examples:
+            >>> processor = DocumentProcessor()
+            >>> docs = [{"content": "text", "source": "github", "metadata": {}}]
+            >>> texts, metas, ids = processor.process_documents(docs)
         """
         all_texts = []
         all_metadatas = []
@@ -75,15 +97,22 @@ class DocumentProcessor:
 
     def _generate_id(self, content: str, source: str, index: int) -> str:
         """
-        Generate unique ID for document chunk
+        Generate unique ID for document chunk.
+
+        Creates a deterministic ID based on content hash, source, and chunk index.
 
         Args:
-            content: Original content
-            source: Source identifier
-            index: Chunk index
+            content: Original document content
+            source: Source identifier (e.g., 'github', 'confluence')
+            index: Chunk index within the document
 
         Returns:
-            Unique ID string
+            str: Unique ID in format '{source}_{hash}_{index}'
+
+        Examples:
+            >>> processor = DocumentProcessor()
+            >>> processor._generate_id("Hello World", "github", 0)
+            'github_b10a8db1_0'
         """
         # Create hash of content for uniqueness
         content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
@@ -91,13 +120,20 @@ class DocumentProcessor:
 
     def clean_text(self, text: str) -> str:
         """
-        Clean and normalize text
+        Clean and normalize text.
+
+        Removes extra whitespace and normalizes spacing.
 
         Args:
-            text: Input text
+            text: Input text to clean
 
         Returns:
-            Cleaned text
+            str: Cleaned and normalized text
+
+        Examples:
+            >>> processor = DocumentProcessor()
+            >>> processor.clean_text("Hello   World\\n\\n  ")
+            'Hello World'
         """
         if not text:
             return ""
@@ -107,16 +143,23 @@ class DocumentProcessor:
 
     def extract_code_blocks(self, text: str) -> List[Dict[str, str]]:
         """
-        Extract code blocks from markdown text
+        Extract code blocks from markdown text.
+
+        Parses markdown code blocks with optional language specification.
 
         Args:
-            text: Markdown text
+            text: Markdown text containing code blocks
 
         Returns:
-            List of code blocks with language and content
-        """
-        import re
+            List[Dict[str, str]]: List of code blocks with 'language' and 'code' keys
 
+        Examples:
+            >>> processor = DocumentProcessor()
+            >>> text = "```python\\nprint('hello')\\n```"
+            >>> blocks = processor.extract_code_blocks(text)
+            >>> blocks[0]['language']
+            'python'
+        """
         pattern = r'```(\w+)?\n(.*?)```'
         matches = re.findall(pattern, text, re.DOTALL)
 

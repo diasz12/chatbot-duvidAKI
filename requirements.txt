@@ -14,7 +14,8 @@ PyGithub==2.4.0
 
 # Vector Database and RAG
 chromadb==0.4.24
-langchain==0.3.7
+langchain>=0.3.7,<0.4.0
+langchain-text-splitters>=0.3.0
 langchain-openai==0.2.9
 langchain-community==0.3.7
 tiktoken==0.8.0

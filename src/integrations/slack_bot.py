@@ -1,10 +1,15 @@
 """
-Slack bot integration using Bolt SDK
+Slack bot integration using Bolt SDK.
+
+This module provides the SlackBot class for integrating the DuvidAKI chatbot
+with Slack using the Bolt SDK. It handles app mentions, direct messages,
+and slash commands.
 """
+
+import re
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from typing import Dict, Any
 
 from src.config import Config
 from src.services.rag_service import RAGService
@@ -14,14 +19,29 @@ logger = setup_logger(__name__)
 
 
 class SlackBot:
-    """Slack bot for DuvidAKI chatbot"""
+    """
+    Slack bot integration for DuvidAKI chatbot.
+
+    Handles Slack events including app mentions, direct messages,
+    and slash commands. Uses Socket Mode for real-time communication.
+
+    Attributes:
+        rag_service: RAG service for answering questions
+        app: Slack Bolt application instance
+
+    Raises:
+        ValueError: If Slack is not properly configured
+    """
 
     def __init__(self, rag_service: RAGService):
         """
-        Initialize Slack bot
+        Initialize Slack bot.
 
         Args:
-            rag_service: RAG service instance
+            rag_service: RAG service instance for processing queries
+
+        Raises:
+            ValueError: If Slack configuration is missing
         """
         if not Config.is_slack_configured():
             logger.error("Slack not properly configured")
@@ -40,12 +60,11 @@ class SlackBot:
 
         logger.info("SlackBot initialized")
 
-    def _register_handlers(self):
-        """Register Slack event handlers"""
-
+    def _register_handlers(self) -> None:
+        """Register all Slack event handlers."""
         @self.app.event("app_mention")
         def handle_mention(event, say):
-            """Handle @mention events"""
+            """Handle app mention events."""
             try:
                 user = event.get("user")
                 text = event.get("text", "")
@@ -82,7 +101,7 @@ class SlackBot:
 
         @self.app.message("")
         def handle_direct_message(message, say):
-            """Handle direct messages"""
+            """Handle direct messages."""
             try:
                 # Only respond to DMs (not channel messages)
                 if message.get("channel_type") != "im":
@@ -115,7 +134,7 @@ class SlackBot:
 
         @self.app.command("/duvidaki")
         def handle_slash_command(ack, command, respond):
-            """Handle /duvidaki slash command"""
+            """Handle /duvidaki slash command."""
             try:
                 ack()
 
@@ -145,8 +164,8 @@ class SlackBot:
                 )
 
         @self.app.command("/duvidaki-stats")
-        def handle_stats_command(ack, command, respond):
-            """Handle /duvidaki-stats slash command"""
+        def handle_stats_command(ack, _command, respond):
+            """Handle /duvidaki-stats slash command."""
             try:
                 ack()
 
@@ -169,41 +188,57 @@ class SlackBot:
                 )
 
         @self.app.event("message")
-        def handle_message_events(body, logger):
-            """Catch-all for message events"""
+        def handle_message_events(_body, _logger):
+            """Catch-all for message events."""
             pass
 
     def _clean_mention(self, text: str) -> str:
         """
-        Remove bot mention from text
+        Remove bot mention from text.
 
         Args:
-            text: Message text with mention
+            text: Message text with mention (e.g., "<@U12345> How to deploy?")
 
         Returns:
-            Cleaned text
+            str: Cleaned text without mention (e.g., "How to deploy?")
+
+        Examples:
+            >>> bot = SlackBot(rag_service)
+            >>> bot._clean_mention("<@U12345> Hello")
+            'Hello'
         """
-        import re
         cleaned = re.sub(r'<@[A-Z0-9]+>', '', text)
         return cleaned.strip()
 
-    def start(self):
-        """Start the Slack bot"""
+    def start(self) -> None:
+        """
+        Start the Slack bot in Socket Mode.
+
+        Raises:
+            Exception: If bot fails to start
+        """
         try:
             logger.info("Starting Slack bot...")
             handler = SocketModeHandler(self.app, Config.SLACK_APP_TOKEN)
             handler.start()
         except Exception as e:
-            logger.error(f"Error starting Slack bot: {e}")
+            logger.error(f"Error starting Slack bot: {e}", exc_info=True)
             raise
 
-    def send_message(self, channel: str, text: str):
+    def send_message(self, channel: str, text: str) -> None:
         """
-        Send message to Slack channel
+        Send message to Slack channel.
 
         Args:
-            channel: Channel ID
-            text: Message text
+            channel: Channel ID (e.g., "C1234567890")
+            text: Message text to send
+
+        Raises:
+            Exception: If message sending fails
+
+        Examples:
+            >>> bot = SlackBot(rag_service)
+            >>> bot.send_message("C1234567890", "Hello team!")
         """
         try:
             self.app.client.chat_postMessage(
@@ -211,4 +246,5 @@ class SlackBot:
                 text=text
             )
         except Exception as e:
-            logger.error(f"Error sending message: {e}")
+            logger.error(f"Error sending message: {e}", exc_info=True)
+            raise

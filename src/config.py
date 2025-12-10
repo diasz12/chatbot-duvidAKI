@@ -32,6 +32,10 @@ class Config:
     GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
     GITHUB_REPOS = os.getenv("GITHUB_REPOS", "").split(",") if os.getenv("GITHUB_REPOS") else []
 
+    # Devin AI
+    DEVIN_API_KEY = os.getenv("DEVIN_API_KEY")
+    DEVIN_ORG_ID = os.getenv("DEVIN_ORG_ID")
+
     # Vector Database
     CHROMA_PERSIST_DIRECTORY = os.getenv("CHROMA_PERSIST_DIRECTORY", "./data/chroma")
 
@@ -77,3 +81,8 @@ class Config:
     def is_github_configured(cls):
         """Check if GitHub is properly configured"""
         return bool(cls.GITHUB_TOKEN and cls.GITHUB_REPOS)
+
+    @classmethod
+    def is_devin_configured(cls):
+        """Check if Devin AI is properly configured"""
+        return bool(cls.DEVIN_API_KEY)
