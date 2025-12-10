@@ -5,6 +5,12 @@ Main entry point
 
 import argparse
 import sys
+import io
+
+# Configure UTF-8 encoding for Windows console
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 from src.config import Config
 from src.services.rag_service import RAGService
