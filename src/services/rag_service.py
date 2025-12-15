@@ -3,15 +3,15 @@ RAG (Retrieval Augmented Generation) service
 Combines vector search with LLM generation
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from openai import OpenAI
 
 from src.config import Config
-from src.services.vector_store import VectorStore
-from src.services.document_processor import DocumentProcessor
 from src.crawlers.confluence_crawler import ConfluenceCrawler
 from src.crawlers.github_crawler import GitHubCrawler
-from src.services.devin_repository_service import DevinRepositoryService
+from src.services.document_processor import DocumentProcessor
+from src.services.vector_store import VectorStore
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -21,12 +21,11 @@ class RAGService:
     """Retrieval Augmented Generation service"""
 
     def __init__(self):
-        """Initialize RAG service"""
+        """Initialize RAG service."""
         self.vector_store = VectorStore()
         self.document_processor = DocumentProcessor()
         self.confluence_crawler = ConfluenceCrawler()
         self.github_crawler = GitHubCrawler()
-        self.devin_service = DevinRepositoryService() if Config.is_devin_configured() else None
         self.openai_client = OpenAI(api_key=Config.OPENAI_API_KEY)
         logger.info("RAGService initialized")
 
@@ -105,23 +104,18 @@ class RAGService:
             logger.error(f"Error indexing documents: {e}")
             return False
 
-    def query(self, question: str, n_results: int = None, use_devin: bool = False) -> str:
+    def query(self, question: str, n_results: int = None) -> str:
         """
-        Query the knowledge base and generate response
+        Query the knowledge base and generate response.
 
         Args:
             question: User question
             n_results: Number of context documents to retrieve
-            use_devin: Whether to use Devin AI for repository queries
 
         Returns:
             Generated response
         """
         try:
-            # Check if should use Devin for code-related queries
-            if use_devin and self.devin_service and self._is_code_query(question):
-                return self._query_with_devin(question)
-
             # Retrieve relevant context from vector store
             results = self.vector_store.search(question, n_results)
 
@@ -130,10 +124,6 @@ class RAGService:
             metadatas = results.get('metadatas', [[]])[0]
 
             if not documents:
-                # Fallback to Devin if no local results and Devin is available
-                if self.devin_service:
-                    logger.info("No local results, trying Devin AI")
-                    return self._query_with_devin(question)
                 return "Desculpe, não encontrei informações relevantes na base de conhecimento para responder sua pergunta."
 
             # Build context
@@ -230,55 +220,6 @@ Por favor, responda a pergunta com base APENAS no contexto acima."""
             logger.error(f"Error generating response: {e}")
             return "Desculpe, ocorreu um erro ao gerar a resposta."
 
-    def _is_code_query(self, question: str) -> bool:
-        """
-        Detect if question is code-related
-
-        Args:
-            question: User question
-
-        Returns:
-            True if code-related
-        """
-        code_keywords = [
-            "código", "code", "função", "function", "classe", "class",
-            "método", "method", "arquivo", "file", "implementação",
-            "implementation", "como funciona", "how does", "exemplo",
-            "example", "bug", "erro", "error", "api", "endpoint"
-        ]
-        question_lower = question.lower()
-        return any(keyword in question_lower for keyword in code_keywords)
-
-    def _query_with_devin(self, question: str) -> str:
-        """
-        Query using Devin AI
-
-        Args:
-            question: User question
-
-        Returns:
-            Response or session URL
-        """
-        try:
-            logger.info("Querying with Devin AI")
-            result = self.devin_service.query_code(question)
-
-            if result.get("error"):
-                return f"Erro ao consultar Devin: {result['error']}"
-
-            session_url = result.get("url")
-            return f"""Criei uma sessão no Devin para analisar sua pergunta sobre o código:
-
-**Pergunta:** {question}
-
-**Sessão Devin:** {session_url}
-
-O Devin está analisando os repositórios e irá fornecer uma resposta detalhada. Você pode acompanhar o progresso através do link acima."""
-
-        except Exception as e:
-            logger.error(f"Error querying with Devin: {e}")
-            return "Desculpe, ocorreu um erro ao consultar o Devin."
-
     def get_stats(self) -> Dict[str, Any]:
         """
         Get knowledge base statistics
@@ -289,8 +230,7 @@ O Devin está analisando os repositórios e irá fornecer uma resposta detalhada
         return {
             "total_documents": self.vector_store.count_documents(),
             "confluence_configured": Config.is_confluence_configured(),
-            "github_configured": Config.is_github_configured(),
-            "devin_configured": Config.is_devin_configured()
+            "github_configured": Config.is_github_configured()
         }
 
     def reset_knowledge_base(self) -> bool:
