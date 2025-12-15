@@ -28,7 +28,25 @@ class VectorStore:
         )
         self.openai_client = OpenAI(api_key=Config.OPENAI_API_KEY)
         self.collection_name = "knowledge_base"
-        self.collection = self._get_or_create_collection()
+
+        # Try to get or create collection, handle schema errors
+        try:
+            self.collection = self._get_or_create_collection()
+        except Exception as e:
+            logger.error(f"Failed to initialize collection: {e}")
+            # If there's a schema error, reset the database and try again
+            if "no such column" in str(e).lower() or "database" in str(e).lower():
+                logger.warning("Detected database schema issue, performing full reset...")
+                try:
+                    self.client.reset()
+                    self.collection = self._get_or_create_collection()
+                    logger.info("Database reset and collection recreated successfully")
+                except Exception as e2:
+                    logger.error(f"Failed to reset and recreate: {e2}")
+                    raise
+            else:
+                raise
+
         logger.info("VectorStore initialized")
 
     def _get_or_create_collection(self):
@@ -167,10 +185,25 @@ class VectorStore:
     def reset(self) -> bool:
         """Delete all documents from collection"""
         try:
-            self.client.delete_collection(name=self.collection_name)
+            # Try to delete the collection first
+            try:
+                self.client.delete_collection(name=self.collection_name)
+            except Exception as e:
+                logger.warning(f"Could not delete collection (may not exist): {e}")
+
+            # Recreate the collection
             self.collection = self._get_or_create_collection()
             logger.info("Vector store reset")
             return True
         except Exception as e:
             logger.error(f"Error resetting vector store: {e}")
-            return False
+            # If reset fails due to schema issues, try to reset the entire client
+            try:
+                logger.warning("Attempting full database reset due to schema error...")
+                self.client.reset()
+                self.collection = self._get_or_create_collection()
+                logger.info("Vector store reset with full database reset")
+                return True
+            except Exception as e2:
+                logger.error(f"Full database reset also failed: {e2}")
+                return False

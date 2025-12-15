@@ -87,7 +87,7 @@ class SlackBot:
                 say(text="Deixe-me procurar isso para você...", thread_ts=thread_ts)
 
                 # Get response from RAG
-                response = self.rag_service.query(question)
+                response = self.rag_service.query(question=question)
 
                 # Send response
                 say(text=response, thread_ts=thread_ts)
@@ -120,7 +120,7 @@ class SlackBot:
                 say(text="Deixe-me procurar isso para você...", thread_ts=thread_ts)
 
                 # Get response from RAG
-                response = self.rag_service.query(text)
+                response = self.rag_service.query(question=text)
 
                 # Send response
                 say(text=response, thread_ts=thread_ts)
@@ -151,7 +151,7 @@ class SlackBot:
                 logger.info(f"Slash command from {user}: {text}")
 
                 # Get response from RAG
-                response = self.rag_service.query(text)
+                response = self.rag_service.query(question=text)
 
                 # Send response
                 respond(text=response)
