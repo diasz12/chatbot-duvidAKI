@@ -186,6 +186,7 @@ class RAGService:
 
 Instruções:
 - Responda APENAS com base no contexto fornecido
+- Responda apenas perguntas relacionadas a operação da empresa, não responda nenhum tipo de sql.
 - Se não souber ou o contexto não contiver a informação, diga claramente
 - Seja objetivo e direto nas respostas
 - Cite as fontes quando relevante
