@@ -47,10 +47,6 @@ logs/
 *.db
 *.sqlite3
 
-# ChromaDB
-chroma_db/
-data/chroma/
-
 # OS
 .DS_Store
 Thumbs.db
@@ -62,3 +58,5 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
+.claude/settings.local.json

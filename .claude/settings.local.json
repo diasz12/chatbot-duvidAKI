@@ -4,7 +4,12 @@
       "Bash(dir /s /b *.py)",
       "Bash(findstr /v \"venv\"\")",
       "Bash(dir:*)",
-      "Bash(if exist \"data\\chroma\" dir \"data\\chroma\")"
+      "Bash(if exist \"data\\chroma\" dir \"data\\chroma\")",
+      "Bash(tree:*)",
+      "Bash(rm:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(exit)"
     ]
   }
 }

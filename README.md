@@ -4,7 +4,7 @@
 
 **Chatbot inteligente com RAG para Slack**
 
-Responda dúvidas da equipe automaticamente com base em documentação do Confluence e GitHub
+Responda dúvidas da equipe automaticamente com base em documentação do Confluence
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-green.svg)](https://openai.com/)
@@ -35,8 +35,7 @@ Responda dúvidas da equipe automaticamente com base em documentação do Conflu
 
 **DuvidAKI** é um chatbot inteligente que utiliza **RAG (Retrieval Augmented Generation)** para responder perguntas da equipe baseadas em:
 - 📚 Documentação do Confluence
-- 💻 READMEs e docs de repositórios GitHub
-- 🔍 Busca semântica com ChromaDB
+- 🔍 Busca semântica com PostgreSQL + pgvector
 - 🤖 Respostas geradas com GPT-4
 
 Integrado nativamente ao **Slack**, permite que sua equipe tire dúvidas rapidamente sem sair da conversa.
@@ -52,7 +51,6 @@ Integrado nativamente ao **Slack**, permite que sua equipe tire dúvidas rapidam
 
 ### 📖 Múltiplas Fontes
 - **Confluence**: Indexa espaços completos do Confluence automaticamente
-- **GitHub**: Extrai READMEs, documentação e issues de repositórios
 - **Extensível**: Fácil adicionar novos crawlers para outras fontes
 
 ### 💬 Integração Slack
@@ -62,9 +60,9 @@ Integrado nativamente ao **Slack**, permite que sua equipe tire dúvidas rapidam
 - **Threads**: Mantém conversas organizadas
 
 ### ⚡ Performance
-- **ChromaDB**: Vector store local de alta performance
+- **PostgreSQL + pgvector**: Vector database escalável com Supabase
 - **Chunking Inteligente**: Divide documentos em partes otimizadas
-- **Cache de Embeddings**: Evita reprocessamento desnecessário
+- **HNSW Index**: Busca vetorial ultra-rápida
 
 ---
 
@@ -75,30 +73,29 @@ graph LR
     A[Usuário no Slack] --> B[DuvidAKI Bot]
     B --> C[RAG Service]
     C --> D[Vector Search]
-    D --> E[ChromaDB]
+    D --> E[PostgreSQL + pgvector]
     C --> F[LLM GPT-4]
     F --> B
     B --> A
 
     G[Confluence] -.Indexação.-> E
-    H[GitHub] -.Indexação.-> E
 ```
 
 ### 1️⃣ Indexação (Executar 1x ou periodicamente)
 ```
-Confluence/GitHub → Crawlers → Chunks → Embeddings → ChromaDB
+Confluence → Crawlers → Chunks → Embeddings → PostgreSQL
 ```
 - Crawlers extraem conteúdo das fontes
 - Documentos são divididos em chunks de ~1000 caracteres
 - OpenAI gera embeddings (vetores) para cada chunk
-- ChromaDB armazena os vetores para busca rápida
+- PostgreSQL + pgvector armazena os vetores para busca rápida
 
 ### 2️⃣ Consulta (Cada pergunta do usuário)
 ```
 Pergunta → Embedding → Busca Semântica → Top 5 Docs → GPT-4 → Resposta
 ```
 - Pergunta é convertida em embedding
-- ChromaDB busca os 5 chunks mais similares
+- PostgreSQL + pgvector busca os 5 chunks mais similares (cosine similarity)
 - GPT-4 gera resposta baseada nesses chunks
 - Resposta é enviada ao Slack com citação das fontes
 
@@ -113,7 +110,6 @@ Pergunta → Embedding → Busca Semântica → Top 5 Docs → GPT-4 → Respost
 ### Opcional (dependendo do uso)
 - **Slack App** - Para integração com Slack
 - **Confluence API Token** - Para indexar Confluence
-- **GitHub Token** - Para indexar repositórios GitHub
 
 ---
 
@@ -173,12 +169,7 @@ CONFLUENCE_EMAIL=seu-email@empresa.com
 CONFLUENCE_API_TOKEN=ATATT3xFfGF0...
 CONFLUENCE_SPACE_KEY=DOCS
 
-# GitHub (OPCIONAL - se quiser indexar GitHub)
-GITHUB_TOKEN=ghp_...
-GITHUB_REPOS=empresa/backend,empresa/frontend
-
 # Configurações Avançadas (opcional)
-CHROMA_PERSIST_DIRECTORY=./data/chroma
 MAX_RESULTS=5
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
@@ -273,27 +264,6 @@ CONFLUENCE_SPACE_KEY=DOCS  # Chave do espaço a indexar
 
 </details>
 
-<details>
-<summary><b>💻 Configurar GitHub</b></summary>
-
-### Gerar Personal Access Token
-
-1. Acesse [github.com/settings/tokens](https://github.com/settings/tokens)
-2. **Generate new token** → **Classic**
-3. Scopes:
-   - `repo` (repositórios privados)
-   - OU `public_repo` (apenas públicos)
-4. Copiar token gerado
-
-### Configurar no .env
-
-```env
-GITHUB_TOKEN=ghp_...
-GITHUB_REPOS=empresa/repo1,empresa/repo2,usuario/repo3
-```
-
-</details>
-
 ---
 
 ## 💻 Uso
@@ -303,9 +273,6 @@ GITHUB_REPOS=empresa/repo1,empresa/repo2,usuario/repo3
 ```bash
 # Indexar apenas Confluence
 python main.py index --confluence
-
-# Indexar apenas GitHub
-python main.py index --github
 
 # Indexar tudo
 python main.py index --all
@@ -357,7 +324,6 @@ Para fazer deploy em produção, siga estes passos:
 
 Fontes:
 - [Confluence] Guia de Deploy (https://empresa.atlassian.net/wiki/...)
-- [GitHub] README.md - backend (https://github.com/empresa/backend/...)
 ```
 
 ### 📊 4. Ver Estatísticas
@@ -372,7 +338,6 @@ python main.py stats
 ==================================================
 Total documents: 2296
 Confluence: ✅ Configured
-GitHub: ✅ Configured
 ==================================================
 ```
 
@@ -428,11 +393,10 @@ chatbot-duvidAKI/
 │   ├── 📄 config.py             # Configurações centralizadas
 │   │
 │   ├── 📁 crawlers/             # Extração de dados
-│   │   ├── confluence_crawler.py  # Confluence API
-│   │   └── github_crawler.py      # GitHub API
+│   │   └── confluence_crawler.py  # Confluence API
 │   │
 │   ├── 📁 services/             # Lógica de negócio
-│   │   ├── vector_store.py        # ChromaDB + Embeddings
+│   │   ├── vector_store.py        # PostgreSQL + pgvector
 │   │   ├── document_processor.py  # Chunking de documentos
 │   │   └── rag_service.py         # RAG completo
 │   │
@@ -441,9 +405,6 @@ chatbot-duvidAKI/
 │   │
 │   └── 📁 utils/
 │       └── logger.py              # Logging configurado
-│
-├── 📁 data/
-│   └── chroma/                   # ChromaDB persistence
 │
 └── 📁 tests/                     # Testes (futuros)
 ```
@@ -554,10 +515,10 @@ heroku ps:scale worker=1
 
 ### Infraestrutura
 
-- ✅ **ChromaDB**: Gratuito (local)
+- ✅ **Supabase (PostgreSQL)**: Gratuito até 500MB
 - ✅ **Slack**: Gratuito
-- ✅ **Confluence/GitHub**: Já existente
-- 💵 **Servidor VPS**: $5-20/mês (DigitalOcean, AWS, etc.)
+- ✅ **Confluence**: Já existente
+- 💵 **Cloud Run**: ~R$ 0-50/mês (com min-instances=0)
 
 ---
 
@@ -653,17 +614,21 @@ python main.py query "teste"
 </details>
 
 <details>
-<summary><b>❌ Erro: "no such column: collections.topic"</b></summary>
+<summary><b>❌ Erro: "Connection refused" ao database</b></summary>
 
-**Causa**: Banco ChromaDB corrompido ou versão incompatível
+**Causa**: DATABASE_URL incorreto ou Supabase offline
 
 **Solução**:
 ```bash
-# Deletar banco antigo
-rm -rf data/chroma
+# Verificar connection string no .env
+cat .env | grep DATABASE_URL
 
-# Reindexar
-python main.py index --all
+# Testar conexão
+python scripts/test_db_connection.py
+
+# Se necessário, resetar e reindexar
+python main.py reset
+python main.py index --confluence
 ```
 </details>
 

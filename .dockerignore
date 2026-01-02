@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# Git
+.git/
+.gitignore
+
+# Environment variables (will be set in Cloud Run)
+.env
+.env.local
+
+# Data (will be stored in Cloud Storage or external DB)
+data/
+*.db
+*.sqlite
+
+# Tests
+tests/
+*.pytest_cache/
+
+# Documentation (keep README and DEPLOY in image)
+docs/
+!README.md
+!DEPLOY.md
+
+# OS
+.DS_Store
+Thumbs.db

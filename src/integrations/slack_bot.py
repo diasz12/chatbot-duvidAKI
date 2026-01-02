@@ -12,8 +12,15 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from src.config import Config
+from src.constants import (
+    SLACK_HELP_MESSAGE,
+    SLACK_PROCESSING_MESSAGE,
+    SLACK_ERROR_MESSAGE,
+    SLACK_STATS_TEMPLATE
+)
 from src.services.rag_service import RAGService
 from src.utils.logger import setup_logger
+from src.utils.validators import InputValidator
 
 logger = setup_logger(__name__)
 
@@ -61,49 +68,70 @@ class SlackBot:
         logger.info("SlackBot initialized")
 
     def _register_handlers(self) -> None:
-        """Register all Slack event handlers."""
+        # Set to track processed event IDs (prevent duplicates)
+        processed_events = set()
+
         @self.app.event("app_mention")
         def handle_mention(event, say):
             """Handle app mention events."""
+            event_id = event.get("client_msg_id") or event.get("ts")
+
+            # Prevent duplicate processing
+            if event_id in processed_events:
+                logger.debug(f"Skipping duplicate event: {event_id}")
+                return
+            processed_events.add(event_id)
+
+            # Clean old events (keep last 100)
+            if len(processed_events) > 100:
+                processed_events.pop()
+
             try:
                 user = event.get("user")
                 text = event.get("text", "")
                 thread_ts = event.get("thread_ts", event.get("ts"))
 
-                # Remove mention from text
-                question = self._clean_mention(text)
+                question = InputValidator.sanitize_slack_message(text)
 
                 if not question:
-                    say(
-                        text="Olá! Como posso ajudar? Faça uma pergunta sobre nossa documentação.",
-                        thread_ts=thread_ts
-                    )
+                    logger.info(f"Empty question from {user}, sending help message")
+                    say(text=SLACK_HELP_MESSAGE, thread_ts=thread_ts)
                     return
 
-                # Process question
-                logger.info(f"Question from {user}: {question}")
+                logger.info(f"Question from {user}: {question[:100]}...")
 
-                # Show typing indicator
-                say(text="Deixe-me procurar isso para você...", thread_ts=thread_ts)
+                say(text=SLACK_PROCESSING_MESSAGE, thread_ts=thread_ts)
 
-                # Get response from RAG
-                response = self.rag_service.query(question=question)
+                # Try query with retry on connection error
+                max_retries = 2
+                for attempt in range(max_retries):
+                    try:
+                        response = self.rag_service.query(question=question)
+                        break
+                    except Exception as query_error:
+                        logger.warning(f"Query attempt {attempt + 1} failed: {query_error}")
+                        if attempt == max_retries - 1:
+                            raise
+                        # Retry on connection errors
+                        if "connection" in str(query_error).lower():
+                            logger.info("Retrying due to connection error...")
+                            continue
+                        raise
 
-                # Send response
                 say(text=response, thread_ts=thread_ts)
+                logger.info(f"Successfully responded to {user}")
 
             except Exception as e:
-                logger.error(f"Error handling mention: {e}")
-                say(
-                    text="Desculpe, ocorreu um erro ao processar sua pergunta.",
-                    thread_ts=thread_ts
-                )
+                logger.error(f"Error handling mention: {e}", exc_info=True)
+                try:
+                    say(text=SLACK_ERROR_MESSAGE, thread_ts=thread_ts)
+                except Exception as say_error:
+                    logger.error(f"Failed to send error message: {say_error}")
 
         @self.app.message("")
         def handle_direct_message(message, say):
             """Handle direct messages."""
             try:
-                # Only respond to DMs (not channel messages)
                 if message.get("channel_type") != "im":
                     return
 
@@ -114,23 +142,21 @@ class SlackBot:
                 if not text:
                     return
 
-                logger.info(f"DM from {user}: {text}")
+                question = InputValidator.sanitize_slack_message(text)
+                if not question:
+                    return
 
-                # Show typing indicator
-                say(text="Deixe-me procurar isso para você...", thread_ts=thread_ts)
+                logger.info(f"DM from {user}: {question[:100]}...")
 
-                # Get response from RAG
-                response = self.rag_service.query(question=text)
+                say(text=SLACK_PROCESSING_MESSAGE, thread_ts=thread_ts)
 
-                # Send response
+                response = self.rag_service.query(question=question)
+
                 say(text=response, thread_ts=thread_ts)
 
             except Exception as e:
-                logger.error(f"Error handling DM: {e}")
-                say(
-                    text="Desculpe, ocorreu um erro ao processar sua pergunta.",
-                    thread_ts=thread_ts
-                )
+                logger.error(f"Error handling DM: {e}", exc_info=True)
+                say(text=SLACK_ERROR_MESSAGE, thread_ts=thread_ts)
 
         @self.app.command("/duvidaki")
         def handle_slash_command(ack, command, respond):
@@ -150,18 +176,13 @@ class SlackBot:
 
                 logger.info(f"Slash command from {user}: {text}")
 
-                # Get response from RAG
                 response = self.rag_service.query(question=text)
 
-                # Send response
                 respond(text=response)
 
             except Exception as e:
-                logger.error(f"Error handling slash command: {e}")
-                respond(
-                    text="Desculpe, ocorreu um erro ao processar sua pergunta.",
-                    response_type="ephemeral"
-                )
+                logger.error(f"Error handling slash command: {e}", exc_info=True)
+                respond(text=SLACK_ERROR_MESSAGE, response_type="ephemeral")
 
         @self.app.command("/duvidaki-stats")
         def handle_stats_command(ack, _command, respond):
@@ -171,21 +192,17 @@ class SlackBot:
 
                 stats = self.rag_service.get_stats()
 
-                response = f"""📊 *Estatísticas do DuvidAKI*
-
-• Total de documentos: {stats['total_documents']}
-• Confluence: {'✅ Configurado' if stats['confluence_configured'] else '❌ Não configurado'}
-• GitHub: {'✅ Configurado' if stats['github_configured'] else '❌ Não configurado'}
-"""
+                response = SLACK_STATS_TEMPLATE.format(
+                    total_documents=stats['total_documents'],
+                    confluence_status='✅ Configurado' if stats['confluence_configured'] else '❌ Não configurado',
+                    github_status='✅ Configurado' if stats['github_configured'] else '❌ Não configurado'
+                )
 
                 respond(text=response, response_type="ephemeral")
 
             except Exception as e:
-                logger.error(f"Error handling stats command: {e}")
-                respond(
-                    text="Erro ao obter estatísticas.",
-                    response_type="ephemeral"
-                )
+                logger.error(f"Error handling stats command: {e}", exc_info=True)
+                respond(text=SLACK_ERROR_MESSAGE, response_type="ephemeral")
 
         @self.app.event("message")
         def handle_message_events(_body, _logger):

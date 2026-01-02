@@ -3,16 +3,22 @@ RAG (Retrieval Augmented Generation) service
 Combines vector search with LLM generation
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
 from src.config import Config
+from src.constants import (
+    DUVIDAKI_SYSTEM_PROMPT,
+    QUERY_TEMPLATE,
+    NO_RESULTS_MESSAGE,
+    ERROR_MESSAGE
+)
 from src.crawlers.confluence_crawler import ConfluenceCrawler
-from src.crawlers.github_crawler import GitHubCrawler
 from src.services.document_processor import DocumentProcessor
 from src.services.vector_store import VectorStore
 from src.utils.logger import setup_logger
+from src.utils.validators import InputValidator
 
 logger = setup_logger(__name__)
 
@@ -25,11 +31,19 @@ class RAGService:
         self.vector_store = VectorStore()
         self.document_processor = DocumentProcessor()
         self.confluence_crawler = ConfluenceCrawler()
-        self.github_crawler = GitHubCrawler()
         self.openai_client = OpenAI(api_key=Config.OPENAI_API_KEY)
         logger.info("RAGService initialized")
 
-    def index_confluence(self, space_key: str = None) -> bool:
+    def index_confluence(self, space_key: Optional[str] = None) -> bool:
+        """
+        Index Confluence space into vector store
+
+        Args:
+            space_key: Confluence space key to index
+
+        Returns:
+            True if successful
+        """
         try:
             logger.info(f"Indexing Confluence space: {space_key}")
 
@@ -45,33 +59,6 @@ class RAGService:
 
         except Exception as e:
             logger.error(f"Error indexing Confluence: {e}")
-            return False
-
-    def index_github(self, repo_names: List[str] = None) -> bool:
-        """
-        Index GitHub repositories into vector store
-
-        Args:
-            repo_names: List of repository names
-
-        Returns:
-            True if successful
-        """
-        try:
-            logger.info(f"Indexing GitHub repositories: {repo_names}")
-
-            # Crawl GitHub
-            documents = self.github_crawler.crawl_repositories(repo_names)
-
-            if not documents:
-                logger.warning("No documents found in GitHub")
-                return False
-
-            # Process and index
-            return self._index_documents(documents)
-
-        except Exception as e:
-            logger.error(f"Error indexing GitHub: {e}")
             return False
 
     def _index_documents(self, documents: List[Dict[str, Any]]) -> bool:
@@ -104,7 +91,7 @@ class RAGService:
             logger.error(f"Error indexing documents: {e}")
             return False
 
-    def query(self, question: str, n_results: int = None) -> str:
+    def query(self, question: str, n_results: Optional[int] = None) -> str:
         """
         Query the knowledge base and generate response.
 
@@ -116,27 +103,36 @@ class RAGService:
             Generated response
         """
         try:
+            # Validate and sanitize input
+            try:
+                sanitized_question = InputValidator.sanitize_query(question)
+                if not sanitized_question:
+                    return ERROR_MESSAGE
+            except ValueError as e:
+                logger.warning(f"Invalid query blocked: {e}")
+                return str(e)
+
             # Retrieve relevant context from vector store
-            results = self.vector_store.search(question, n_results)
+            results = self.vector_store.search(sanitized_question, n_results)
 
             # Extract documents
             documents = results.get('documents', [[]])[0]
             metadatas = results.get('metadatas', [[]])[0]
 
             if not documents:
-                return "Desculpe, não encontrei informações relevantes na base de conhecimento para responder sua pergunta."
+                return NO_RESULTS_MESSAGE
 
             # Build context
             context = self._build_context(documents, metadatas)
 
             # Generate response
-            response = self._generate_response(question, context)
+            response = self._generate_response(sanitized_question, context)
 
             return response
 
         except Exception as e:
-            logger.error(f"Error querying RAG: {e}")
-            return "Desculpe, ocorreu um erro ao processar sua pergunta."
+            logger.error(f"Error querying RAG: {e}", exc_info=True)
+            return ERROR_MESSAGE
 
     def _build_context(
         self,
@@ -182,44 +178,23 @@ class RAGService:
             Generated response
         """
         try:
-            system_prompt = """Você é o DuvidAKI, um assistente especializado em responder perguntas com base na documentação da empresa.
-
-Instruções:
-- Responda APENAS com base no contexto fornecido
-- Responda apenas perguntas relacionadas a operação da empresa, não responda nenhum tipo de sql.
-- Se não souber ou o contexto não contiver a informação, diga claramente
-- Seja objetivo e direto nas respostas
-- Cite as fontes quando relevante
-- Use formatação markdown para melhor legibilidade
-- Se houver código no contexto, formate corretamente com ```
-
-Importante: NÃO invente informações que não estejam no contexto."""
-
-            user_prompt = f"""Contexto da base de conhecimento:
-
-{context}
-
----
-
-Pergunta do usuário: {question}
-
-Por favor, responda a pergunta com base APENAS no contexto acima."""
+            user_prompt = QUERY_TEMPLATE.format(context=context, question=question)
 
             response = self.openai_client.chat.completions.create(
                 model=Config.OPENAI_MODEL,
                 messages=[
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": DUVIDAKI_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=1000
+                temperature=Config.OPENAI_TEMPERATURE,
+                max_tokens=Config.OPENAI_MAX_TOKENS
             )
 
             return response.choices[0].message.content
 
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            return "Desculpe, ocorreu um erro ao gerar a resposta."
+            logger.error(f"Error generating response: {e}", exc_info=True)
+            return ERROR_MESSAGE
 
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -230,8 +205,7 @@ Por favor, responda a pergunta com base APENAS no contexto acima."""
         """
         return {
             "total_documents": self.vector_store.count_documents(),
-            "confluence_configured": Config.is_confluence_configured(),
-            "github_configured": Config.is_github_configured()
+            "confluence_configured": Config.is_confluence_configured()
         }
 
     def reset_knowledge_base(self) -> bool:
