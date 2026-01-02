@@ -90,10 +90,10 @@ class InputValidator:
         if not text:
             return ""
 
-        # Remove Slack formatting
-        text = re.sub(r'<@[A-Z0-9]+>', '', text)  # Remove mentions
-        text = re.sub(r'<#[A-Z0-9]+\|[^>]+>', '', text)  # Remove channel links
-        text = re.sub(r'<http[^>]+>', '', text)  # Remove URLs
+        # Remove Slack formatting (using robust patterns that handle all formats)
+        text = re.sub(r'<@[^>]+>', '', text)  # Remove mentions (<@U123> or <@U123|user>)
+        text = re.sub(r'<#[^>]+>', '', text)  # Remove channel links (<#C123|channel>)
+        text = re.sub(r'<https?://[^>]+>', '', text)  # Remove URL links
 
         return text.strip()
 
