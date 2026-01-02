@@ -36,15 +36,6 @@ class ConfluenceCrawler:
             self.client = None
 
     def crawl_space(self, space_key: str = None) -> List[Dict[str, Any]]:
-        """
-        Crawl all pages in a Confluence space
-
-        Args:
-            space_key: Space key to crawl (uses config default if not provided)
-
-        Returns:
-            List of documents with content and metadata
-        """
         if not self.client:
             logger.warning("Confluence client not initialized")
             return []

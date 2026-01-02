@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Tuple
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config import Config
+from src.constants import MIN_CHUNK_SIZE, MAX_CHUNK_SIZE
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -31,13 +32,20 @@ class DocumentProcessor:
 
     def __init__(self):
         """Initialize document processor with configured chunk size and overlap."""
+        chunk_size = max(MIN_CHUNK_SIZE, min(Config.CHUNK_SIZE, MAX_CHUNK_SIZE))
+        if chunk_size != Config.CHUNK_SIZE:
+            logger.warning(
+                f"Chunk size {Config.CHUNK_SIZE} outside valid range. "
+                f"Using {chunk_size} instead."
+            )
+
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=Config.CHUNK_SIZE,
+            chunk_size=chunk_size,
             chunk_overlap=Config.CHUNK_OVERLAP,
             length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
-        logger.info("DocumentProcessor initialized")
+        logger.info(f"DocumentProcessor initialized (chunk_size={chunk_size})")
 
     def process_documents(
         self,
@@ -77,10 +85,8 @@ class DocumentProcessor:
             chunks = self.text_splitter.split_text(content)
 
             for i, chunk in enumerate(chunks):
-                # Create unique ID
                 chunk_id = self._generate_id(content, source, i)
 
-                # Create metadata
                 chunk_metadata = {
                     "source": source,
                     "chunk_index": i,
@@ -114,8 +120,7 @@ class DocumentProcessor:
             >>> processor._generate_id("Hello World", "github", 0)
             'github_b10a8db1_0'
         """
-        # Create hash of content for uniqueness
-        content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:12]
         return f"{source}_{content_hash}_{index}"
 
     def clean_text(self, text: str) -> str:

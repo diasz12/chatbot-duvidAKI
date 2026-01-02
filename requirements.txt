@@ -1,6 +1,7 @@
 # Core
 python-dotenv==1.0.0
-openai==1.54.0
+openai==1.58.1
+httpx==0.28.1
 
 # Slack Integration
 slack-sdk==3.33.2
@@ -9,11 +10,9 @@ slack-bolt==1.21.2
 # Confluence Integration
 atlassian-python-api==3.41.0
 
-# GitHub Integration
-PyGithub==2.4.0
-
-# Vector Database and RAG
-chromadb==0.4.24
+# Vector Database and RAG (PostgreSQL + pgvector)
+psycopg2-binary==2.9.9
+pgvector==0.3.5
 langchain>=0.3.7,<0.4.0
 langchain-text-splitters>=0.3.0
 langchain-openai==0.2.9

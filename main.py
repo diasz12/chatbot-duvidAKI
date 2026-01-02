@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 
 
 def index_knowledge_base(rag_service: RAGService, args):
-    """Index knowledge base from Confluence and GitHub"""
+    """Index knowledge base from Confluence"""
     try:
         logger.info("Starting knowledge base indexing...")
 
@@ -36,18 +36,6 @@ def index_knowledge_base(rag_service: RAGService, args):
                     logger.error("❌ Failed to index Confluence")
             else:
                 logger.warning("⚠️  Confluence not configured")
-
-        # Index GitHub
-        if args.github or args.all:
-            if Config.is_github_configured():
-                logger.info("Indexing GitHub...")
-                success = rag_service.index_github()
-                if success:
-                    logger.info("✅ GitHub indexed successfully")
-                else:
-                    logger.error("❌ Failed to index GitHub")
-            else:
-                logger.warning("⚠️  GitHub not configured")
 
         # Show stats
         stats = rag_service.get_stats()
@@ -94,7 +82,6 @@ def show_stats(rag_service: RAGService):
         print("=" * 50)
         print(f"Total documents: {stats['total_documents']}")
         print(f"Confluence: {'✅ Configured' if stats['confluence_configured'] else '❌ Not configured'}")
-        print(f"GitHub: {'✅ Configured' if stats['github_configured'] else '❌ Not configured'}")
         print("=" * 50)
 
     except Exception as e:
@@ -130,7 +117,6 @@ def main():
     # Index command
     index_parser = subparsers.add_parser("index", help="Index knowledge base")
     index_parser.add_argument("--confluence", action="store_true", help="Index Confluence only")
-    index_parser.add_argument("--github", action="store_true", help="Index GitHub only")
     index_parser.add_argument("--all", action="store_true", help="Index all sources")
 
     # Start command
@@ -160,7 +146,7 @@ def main():
 
     # Execute command
     if args.command == "index":
-        if not (args.confluence or args.github or args.all):
+        if not (args.confluence or args.all):
             args.all = True  # Default to all
         index_knowledge_base(rag_service, args)
 
