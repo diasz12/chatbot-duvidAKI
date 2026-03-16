@@ -7,8 +7,10 @@ from src.constants import (
     SLACK_HELP_MESSAGE,
     SLACK_PROCESSING_MESSAGE,
     SLACK_ERROR_MESSAGE,
-    SLACK_STATS_TEMPLATE
+    SLACK_STATS_TEMPLATE,
+    DEVIN_NOT_CONFIGURED_MESSAGE,
 )
+from src.services.devin_service import DevinService
 from src.services.rag_service import RAGService
 from src.utils.logger import setup_logger
 from src.utils.validators import InputValidator
@@ -23,6 +25,7 @@ class SlackBot:
             raise ValueError("Slack configuration missing")
 
         self.rag_service = rag_service
+        self.devin_service = DevinService() if Config.is_devin_configured() else None
 
         # Initialize Bolt app
         self.app = App(
@@ -225,13 +228,14 @@ class SlackBot:
                     logger.error(f"[Slack Bot] Failed to send error message: {say_error}")
 
         @self.app.command("/duvidaki")
-        def handle_slash_command(ack, command, respond):
+        def handle_slash_command(ack, command, respond, client):
             """Handle /duvidaki slash command."""
             try:
                 ack()
 
                 user = command.get("user_id")
                 text = command.get("text", "")
+                channel = command.get("channel_id")
 
                 if not text:
                     respond(
@@ -242,9 +246,32 @@ class SlackBot:
 
                 logger.info(f"[Slack Bot] Slash command from {user}: {text}")
 
+                # Post the question as a visible message in the channel
+                question_msg = client.chat_postMessage(
+                    channel=channel,
+                    text=f"<@{user}> perguntou: {text}"
+                )
+                thread_ts = question_msg["ts"]
+
+                # Post processing message in thread
+                client.chat_postMessage(
+                    channel=channel,
+                    text=SLACK_PROCESSING_MESSAGE,
+                    thread_ts=thread_ts
+                )
+
                 response = self.rag_service.query(question=text)
 
-                respond(text=response)
+                # Post the answer in the thread
+                client.chat_postMessage(
+                    channel=channel,
+                    text=response,
+                    thread_ts=thread_ts
+                )
+
+                # Track the thread for follow-up replies
+                update_thread_activity(thread_ts)
+                logger.info(f"[Slack Bot] Added thread {thread_ts} to active_threads (from slash command)")
 
             except Exception as e:
                 logger.error(f"[Slack Bot] Error handling slash command: {e}", exc_info=True)
@@ -268,6 +295,56 @@ class SlackBot:
 
             except Exception as e:
                 logger.error(f"[Slack Bot] Error handling stats command: {e}", exc_info=True)
+                respond(text=SLACK_ERROR_MESSAGE, response_type="ephemeral")
+
+        @self.app.command("/devin")
+        def handle_devin_command(ack, command, respond, client):
+            """Handle /devin slash command."""
+            ack()
+
+            if not self.devin_service:
+                respond(text=DEVIN_NOT_CONFIGURED_MESSAGE, response_type="ephemeral")
+                return
+
+            prompt = command.get("text", "")
+            if not prompt:
+                respond(text="Use: `/devin sua pergunta aqui`", response_type="ephemeral")
+                return
+
+            user = command.get("user_id")
+            channel = command.get("channel_id")
+            logger.info(f"[Slack Bot] /devin command from {user}: {prompt[:100]}...")
+
+            try:
+                # Post the question as a visible message in the channel
+                question_msg = client.chat_postMessage(
+                    channel=channel,
+                    text=f"<@{user}> perguntou ao Devin: {prompt}"
+                )
+                thread_ts = question_msg["ts"]
+
+                # Post processing message in thread
+                client.chat_postMessage(
+                    channel=channel,
+                    text=SLACK_PROCESSING_MESSAGE,
+                    thread_ts=thread_ts
+                )
+
+                response = self.devin_service.ask(prompt)
+
+                # Post the answer in the thread
+                client.chat_postMessage(
+                    channel=channel,
+                    text=response,
+                    thread_ts=thread_ts
+                )
+
+                # Track the thread for follow-up replies
+                update_thread_activity(thread_ts)
+                logger.info(f"[Slack Bot] Added thread {thread_ts} to active_threads (from /devin command)")
+
+            except Exception as e:
+                logger.error(f"[Slack Bot] Erro Devin: {e}", exc_info=True)
                 respond(text=SLACK_ERROR_MESSAGE, response_type="ephemeral")
 
         @self.app.event("message")

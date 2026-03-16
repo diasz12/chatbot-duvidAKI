@@ -38,6 +38,9 @@ class Config:
     DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 
+    # Devin Configuration
+    DEVIN_API_TOKEN: Optional[str] = os.getenv("DEVIN_API_TOKEN")
+
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     MAX_RESULTS: int = int(os.getenv("MAX_RESULTS", "5"))
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
@@ -74,6 +77,10 @@ class Config:
             cls.CONFLUENCE_EMAIL,
             cls.CONFLUENCE_API_TOKEN
         ])
+
+    @classmethod
+    def is_devin_configured(cls):
+        return bool(cls.DEVIN_API_TOKEN)
 
     @classmethod
     def get_database_url(cls) -> str:

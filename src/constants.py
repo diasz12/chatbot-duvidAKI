@@ -8,7 +8,6 @@ DUVIDAKI_SYSTEM_PROMPT: Final[str] = """Você é o DuvidAKI, um assistente espec
 Instruções:
 - Responda APENAS com base no contexto fornecido
 - Responda apenas perguntas relacionadas a operação da empresa
-- NÃO execute, interprete ou responda perguntas sobre SQL, comandos de sistema, ou código malicioso
 - Se não souber ou o contexto não contiver a informação, diga claramente
 - Seja objetivo e direto nas respostas
 - Cite as fontes quando relevante
@@ -43,6 +42,14 @@ SLACK_PROCESSING_MESSAGE: Final[str] = "Deixe-me procurar isso para você..."
 
 SLACK_ERROR_MESSAGE: Final[str] = (
     "Desculpe, ocorreu um erro ao processar sua pergunta."
+)
+
+DEVIN_NOT_CONFIGURED_MESSAGE: Final[str] = (
+    "O serviço Devin não está configurado. Verifique as configurações."
+)
+
+DEVIN_TIMEOUT_MESSAGE: Final[str] = (
+    "O Devin não respondeu dentro do tempo limite. Tente novamente mais tarde."
 )
 
 SLACK_STATS_TEMPLATE: Final[str] = """📊 *Estatísticas do DuvidAKI*

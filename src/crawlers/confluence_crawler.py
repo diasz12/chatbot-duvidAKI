@@ -1,7 +1,3 @@
-"""
-Confluence crawler for extracting documentation
-"""
-
 from atlassian import Confluence
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
@@ -14,15 +10,11 @@ logger = setup_logger(__name__)
 
 
 class ConfluenceCrawler:
-    """Crawl Confluence pages and extract content"""
-
     def __init__(self):
-        """Initialize Confluence client"""
         if not Config.is_confluence_configured():
             logger.warning("Confluence not configured")
             self.client = None
             return
-
         try:
             self.client = Confluence(
                 url=Config.CONFLUENCE_URL,
@@ -44,7 +36,6 @@ class ConfluenceCrawler:
             space_key = Config.CONFLUENCE_SPACE_KEY
 
         documents = []
-
         try:
             # Get all pages in space
             start = 0
@@ -80,15 +71,6 @@ class ConfluenceCrawler:
         return documents
 
     def crawl_page(self, page_id: str) -> Dict[str, Any]:
-        """
-        Crawl a single Confluence page
-
-        Args:
-            page_id: Page ID to crawl
-
-        Returns:
-            Document with content and metadata
-        """
         if not self.client:
             logger.warning("Confluence client not initialized")
             return None
@@ -109,16 +91,6 @@ class ConfluenceCrawler:
         page: Dict[str, Any],
         space_key: str = None
     ) -> Dict[str, Any]:
-        """
-        Extract content from Confluence page
-
-        Args:
-            page: Page data from Confluence API
-            space_key: Space key
-
-        Returns:
-            Document dictionary
-        """
         try:
             page_id = page['id']
             title = page['title']
@@ -151,15 +123,6 @@ class ConfluenceCrawler:
             return None
 
     def _html_to_markdown(self, html: str) -> str:
-        """
-        Convert Confluence HTML to markdown
-
-        Args:
-            html: HTML content
-
-        Returns:
-            Markdown text
-        """
         try:
             # Parse HTML and extract text
             soup = BeautifulSoup(html, 'html.parser')
@@ -178,16 +141,6 @@ class ConfluenceCrawler:
             return ""
 
     def search_pages(self, query: str, space_key: str = None) -> List[Dict[str, Any]]:
-        """
-        Search Confluence pages
-
-        Args:
-            query: Search query
-            space_key: Optional space to limit search
-
-        Returns:
-            List of matching documents
-        """
         if not self.client:
             logger.warning("Confluence client not initialized")
             return []

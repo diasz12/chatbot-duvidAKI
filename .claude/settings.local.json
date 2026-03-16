@@ -9,7 +9,10 @@
       "Bash(rm:*)",
       "Bash(wc:*)",
       "Bash(find:*)",
-      "Bash(exit)"
+      "Bash(exit)",
+      "Bash(gcloud run services list:*)",
+      "Bash(gcloud builds list:*)",
+      "Bash(gcloud run services describe:*)"
     ]
   }
 }
