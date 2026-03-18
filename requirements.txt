@@ -3,9 +3,9 @@ python-dotenv==1.0.0
 openai==1.58.1
 httpx==0.28.1
 
-# Slack Integration
-slack-sdk==3.33.2
-slack-bolt==1.21.2
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
 
 # Confluence Integration
 atlassian-python-api==3.41.0

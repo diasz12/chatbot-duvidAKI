@@ -1,0 +1,169 @@
+{
+  "info": {
+    "name": "DuvidAKI",
+    "description": "Webhooks do DuvidAKI — tentáculos Octo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "api_key",
+      "value": "5swRyS6QaWoZeK_-2LWqZKvYqQ3jfQOTT6IA4VhP4fY"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-API-Key", "type": "string" },
+      { "key": "value", "value": "{{api_key}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "auth": { "type": "noauth" },
+            "description": "Healthcheck sem autenticação"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Confluence - Consulta RAG",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/webhook/confluence",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "confluence"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Como configurar o ambiente?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Consulta à base de conhecimento (Confluence RAG)"
+          }
+        },
+        {
+          "name": "Devin - Consulta AI",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/webhook/devin",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "devin"]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Como funciona o deploy?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Consulta ao Devin AI"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["stats"]
+            },
+            "description": "Estatísticas da base de conhecimento"
+          }
+        },
+        {
+          "name": "Index Confluence",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/index/confluence",
+              "host": ["{{base_url}}"],
+              "path": ["index", "confluence"]
+            },
+            "description": "Dispara indexação do Confluence"
+          }
+        },
+        {
+          "name": "Reset Knowledge Base",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/reset",
+              "host": ["{{base_url}}"],
+              "path": ["reset"]
+            },
+            "description": "Reseta toda a base de conhecimento"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Tests",
+      "item": [
+        {
+          "name": "Sem API Key (deve retornar 401)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["stats"]
+            },
+            "auth": { "type": "noauth" },
+            "description": "Testa que request sem API key retorna 401"
+          }
+        },
+        {
+          "name": "API Key errada (deve retornar 401)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["stats"]
+            },
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                { "key": "key", "value": "X-API-Key", "type": "string" },
+                { "key": "value", "value": "chave-errada", "type": "string" },
+                { "key": "in", "value": "header", "type": "string" }
+              ]
+            },
+            "description": "Testa que API key inválida retorna 401"
+          }
+        }
+      ]
+    }
+  ]
+}

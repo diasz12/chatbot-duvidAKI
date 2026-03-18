@@ -4,7 +4,7 @@ Loads and validates environment variables
 """
 
 import os
-from typing import List, Optional
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,9 +18,8 @@ class Config:
     OPENAI_MAX_TOKENS: int = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
     OPENAI_BATCH_SIZE: int = int(os.getenv("OPENAI_BATCH_SIZE", "100"))
 
-    SLACK_BOT_TOKEN: Optional[str] = os.getenv("SLACK_BOT_TOKEN")
-    SLACK_APP_TOKEN: Optional[str] = os.getenv("SLACK_APP_TOKEN")
-    SLACK_SIGNING_SECRET: Optional[str] = os.getenv("SLACK_SIGNING_SECRET")
+    # API Authentication
+    API_KEY: Optional[str] = os.getenv("API_KEY")
 
     CONFLUENCE_URL: Optional[str] = os.getenv("CONFLUENCE_URL")
     CONFLUENCE_EMAIL: Optional[str] = os.getenv("CONFLUENCE_EMAIL")
@@ -61,14 +60,6 @@ class Config:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
         return True
-
-    @classmethod
-    def is_slack_configured(cls):
-        return all([
-            cls.SLACK_BOT_TOKEN,
-            cls.SLACK_APP_TOKEN,
-            cls.SLACK_SIGNING_SECRET
-        ])
 
     @classmethod
     def is_confluence_configured(cls):

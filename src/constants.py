@@ -34,16 +34,6 @@ NO_RESULTS_MESSAGE: Final[str] = (
 
 ERROR_MESSAGE: Final[str] = "Desculpe, ocorreu um erro ao processar sua pergunta."
 
-SLACK_HELP_MESSAGE: Final[str] = (
-    "Olá! Como posso ajudar? Faça uma pergunta sobre nossa documentação."
-)
-
-SLACK_PROCESSING_MESSAGE: Final[str] = "Deixe-me procurar isso para você..."
-
-SLACK_ERROR_MESSAGE: Final[str] = (
-    "Desculpe, ocorreu um erro ao processar sua pergunta."
-)
-
 DEVIN_NOT_CONFIGURED_MESSAGE: Final[str] = (
     "O serviço Devin não está configurado. Verifique as configurações."
 )
@@ -51,13 +41,6 @@ DEVIN_NOT_CONFIGURED_MESSAGE: Final[str] = (
 DEVIN_TIMEOUT_MESSAGE: Final[str] = (
     "O Devin não respondeu dentro do tempo limite. Tente novamente mais tarde."
 )
-
-SLACK_STATS_TEMPLATE: Final[str] = """📊 *Estatísticas do DuvidAKI*
-
-• Total de documentos: {total_documents}
-• Confluence: {confluence_status}
-• GitHub: {github_status}
-"""
 
 # Limits and thresholds
 MAX_QUERY_LENGTH: Final[int] = 2000
